@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Test - Universal Viewer</title>
+    <style>
+        :root {
+            --primary: #0056b3;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --correct-bg: #d4edda;
+            --correct-border: #c3e6cb;
+            --correct-text: #155724;
+            --wrong-bg: #f8d7da;
+            --wrong-border: #f5c6cb;
+            --wrong-text: #721c24;
+            --explain-bg: #e9ecef;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* --- Header (Timer & Score) --- */
+        #test-header {
+            position: sticky;
+            top: 0;
+            background-color: var(--primary);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .header-stat {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* --- Setup Screen --- */
+        #setup-screen {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-top: 50px;
+            text-align: center;
+        }
+
+        .file-upload {
+            margin: 20px 0;
+            text-align: left;
+            background: #f1f3f5;
+            padding: 15px;
+            border-radius: var(--border-radius);
+        }
+
+        .file-upload label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #004494;
+        }
+        
+        /* --- Test Screen --- */
+        #test-screen {
+            display: none;
+            padding-bottom: 50px;
+        }
+
+        .question-card {
+            background: var(--card-bg);
+            padding: 25px;
+            margin-top: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--primary);
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .option-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .option-item:hover:not(.disabled) {
+            background: #e2e6ea;
+        }
+
+        .option-item.disabled {
+            cursor: default;
+            opacity: 0.7;
+        }
+
+        .option-letter {
+            font-weight: bold;
+            margin-right: 15px;
+            min-width: 25px;
+        }
+
+        .option-item.correct {
+            background-color: var(--correct-bg);
+            border-color: var(--correct-border);
+            color: var(--correct-text);
+            font-weight: bold;
+        }
+
+        .option-item.wrong {
+            background-color: var(--wrong-bg);
+            border-color: var(--wrong-border);
+            color: var(--wrong-text);
+        }
+
+        /* --- Explanation & Essay --- */
+        .explanation-box {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: var(--explain-bg);
+            border-radius: 5px;
+            border-left: 4px solid #6c757d;
+            font-size: 0.95rem;
+            white-space: pre-wrap;
+        }
+
+        .explain-section { margin-bottom: 10px; }
+        .explain-section strong {
+            display: inline-block;
+            min-width: 180px;
+            color: #495057;
+        }
+
+        .badge-correct { color: var(--correct-text); font-weight: bold; }
+        .badge-wrong { color: var(--wrong-text); font-weight: bold; }
+        .badge-trap { color: #d39e00; font-weight: bold; }
+
+        .essay-textarea {
+            width: 100%;
+            padding: 15px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="test-header">
+        <div class="header-stat">Time: <span id="timer">00:00</span></div>
+        <div class="header-stat">Score: <span id="score">0</span> / <span id="total-q">0</span></div>
+    </div>
+
+    <div class="container">
+        <div id="setup-screen">
+            <h2>Mock Test - Universal Setup</h2>
+            <p>Please upload the Questions and Answers (.txt) files. (Supports both old and new formats)</p>
+            
+            <div class="file-upload">
+                <label for="q-file">1. Upload Questions File (.txt)</label>
+                <input type="file" id="q-file" accept=".txt">
+            </div>
+
+            <div class="file-upload">
+                <label for="a-file">2. Upload Answer Key File (.txt)</label>
+                <input type="file" id="a-file" accept=".txt">
+            </div>
+
+            <button id="btn-start" onclick="startTest()">Start Test</button>
+            <p id="setup-error" style="color: red; margin-top: 10px;"></p>
+        </div>
+
+        <div id="test-screen">
+            <!-- Questions and Essay will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        let questionsData = []; 
+        let essayPromptText = "";
+        let essayRubricText = "";
+        let currentScore = 0;
+        let timeElapsed = 0;
+        let timerInterval;
+        let totalAnswerable = 0;
+
+        async function startTest() {
+            const qFile = document.getElementById('q-file').files[0];
+            const aFile = document.getElementById('a-file').files[0];
+            const errorMsg = document.getElementById('setup-error');
+
+            if (!qFile || !aFile) {
+                errorMsg.innerText = "Please upload both the Questions and Answers .txt files.";
+                return;
+            }
+
+            errorMsg.innerText = "Processing files...";
+            
+            // Reset state in case of re-upload
+            questionsData = [];
+            essayPromptText = "";
+            essayRubricText = "";
+            currentScore = 0;
+            timeElapsed = 0;
+            clearInterval(timerInterval);
+            document.getElementById('test-screen').innerHTML = '';
+
+            try {
+                const qText = await readFileAsync(qFile);
+                const aText = await readFileAsync(aFile);
+                
+                processFiles(qText, aText);
+                
+                if(questionsData.length === 0) {
+                    errorMsg.innerText = "Could not parse any questions. Please check the file format.";
+                    return;
+                }
+
+                initUI();
+            } catch (err) {
+                errorMsg.innerText = "Error reading files: " + err.message;
+            }
+        }
+
+        function readFileAsync(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        function processFiles(qText, aText) {
+            const parsedQuestions = parseUniversalQuestions(qText);
+            const parsedAnswers = parseUniversalAnswers(aText);
+
+            questionsData = [];
+            const qIds = Object.keys(parsedQuestions).sort((a, b) => parseInt(a) - parseInt(b));
+
+            qIds.forEach(qId => {
+                const q = parsedQuestions[qId];
+                const a = parsedAnswers[qId] || { letter: 'UNKNOWN', parts: {} };
+                
+                // Chỉ hiển thị các câu có A, B, C, D
+                if (Object.keys(q.options).length > 0) {
+                    questionsData.push({
+                        id: qId,
+                        text: q.text,
+                        options: q.options,
+                        answer: a
+                    });
+                }
+            });
+            totalAnswerable = questionsData.length;
+        }
+
+        // --- HÀM TIỀN XỬ LÝ & PHÂN TÍCH THÔNG MINH CHO CÂU HỎI ---
+        function parseUniversalQuestions(text) {
+            const lines = text.split('\n');
+            const questions = {};
+            let currentQId = null;
+            let currentText = [];
+            let isEssaySection = false;
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+
+                // 1. Nhận diện phần Essay (Hỗ trợ cả format cũ và mới)
+                if (trimmed.includes("PHẦN F — ENGLISH ESSAY") || trimmed.includes("Question: ESSAY:")) {
+                    isEssaySection = true;
+                    essayPromptText += trimmed + "\n";
+                    return;
+                }
+
+                if (isEssaySection) {
+                    if (!trimmed.includes("===")) {
+                        essayPromptText += trimmed + "\n";
+                    }
+                    return; 
+                }
+
+                // 2. Định dạng mới: [Q1]
+                let matchBracket = trimmed.match(/^\[Q(\d+)\]/i);
+                if (matchBracket) {
+                    const id = matchBracket[1];
+                    if (!questions[id]) {
+                        currentQId = id;
+                        currentText = []; // Chờ dòng "Question: ..." tiếp theo
+                        questions[currentQId] = { text: "", options: {} };
+                    } else {
+                        currentQId = null;
+                    }
+                    return;
+                }
+
+                // 3. Định dạng mới text: "Question: ..."
+                let matchQText = trimmed.match(/^Question:\s+(.*)/i);
+                if (matchQText && currentQId) {
+                    currentText.push(matchQText[1]);
+                    return;
+                }
+
+                // 4. Định dạng cũ: "1. Question text..."
+                const matchOld = trimmed.match(/^(\d+)\.\s+(.*)/);
+                if (matchOld && !trimmed.match(/^[A-D]\.\s/)) { 
+                    const id = matchOld[1];
+                    if (!questions[id]) {
+                        currentQId = id;
+                        currentText = [matchOld[2]];
+                        questions[currentQId] = { text: "", options: {} };
+                    } else {
+                        currentQId = null;
+                    }
+                    return;
+                }
+
+                // 5. Options (Dùng chung cho cả 2 format)
+                const optMatch = trimmed.match(/^([A-D])\.\s+(.*)/i);
+                if (optMatch && currentQId) {
+                    questions[currentQId].text = currentText.join('\n'); 
+                    questions[currentQId].options[optMatch[1].toUpperCase()] = optMatch[2];
+                    return;
+                }
+
+                // 6. Gom câu hỏi nhiều dòng
+                if (currentQId && Object.keys(questions[currentQId].options).length === 0) {
+                    currentText.push(trimmed);
+                }
+            });
+            return questions;
+        }
+
+        // --- HÀM TIỀN XỬ LÝ & PHÂN TÍCH THÔNG MINH CHO ĐÁP ÁN ---
+        function parseUniversalAnswers(text) {
+            const lines = text.split('\n');
+            const answers = {};
+            let currentAnsId = null;
+            let isRubricSection = false;
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+
+                // 1. Bắt Rubric phần Essay (Format cũ)
+                if (trimmed.includes("ESSAY RUBRIC")) {
+                    isRubricSection = true;
+                    essayRubricText += trimmed + "\n";
+                    return;
+                }
+
+                if (isRubricSection) {
+                    if (!trimmed.includes("===") && !trimmed.includes("GỢI Ý CHO HTML")) {
+                        essayRubricText += trimmed + "\n";
+                    }
+                    return;
+                }
+
+                // 2. Format mới: [A1]
+                let matchBracket = trimmed.match(/^\[A(\d+)\]/i);
+                if (matchBracket) {
+                    const id = matchBracket[1];
+                    if (!answers[id]) {
+                        currentAnsId = id;
+                        answers[currentAnsId] = createEmptyAnswerObj();
+                    } else {
+                        currentAnsId = null;
+                    }
+                    return;
+                }
+
+                // 3. Format cũ: 1. ĐÁP ÁN...
+                const matchOld = trimmed.match(/^(\d+)\.\s*(ĐÁP ÁN|CÂU)/i);
+                if (matchOld) {
+                    const id = matchOld[1];
+                    if (!answers[id]) {
+                        currentAnsId = id;
+                        answers[currentAnsId] = createEmptyAnswerObj();
+                        
+                        // Lấy chữ cái đáp án
+                        let letterMatch = trimmed.match(/ĐÁP ÁN\s*([A-D])/i);
+                        if (letterMatch) answers[currentAnsId].letter = letterMatch[1].toUpperCase();
+                    } else {
+                        currentAnsId = null;
+                    }
+                    return;
+                }
+
+                if (!currentAnsId) return;
+                const ansObj = answers[currentAnsId];
+
+                // 4. Format mới: "Correct_Answer: B" hoặc "Correct_Answer: Bài luận..."
+                let mCorrect = trimmed.match(/^Correct_Answer:\s*(.*)/i);
+                if (mCorrect) {
+                    let val = mCorrect[1];
+                    if (val.includes("Bài luận") || val.includes("Essay")) {
+                        ansObj.isEssay = true;
+                    } else {
+                        let letterMatch = val.match(/^([A-D])/i);
+                        if (letterMatch) ansObj.letter = letterMatch[1].toUpperCase();
+                    }
+                    return;
+                }
+
+                // 5. Ánh xạ từ khóa (Map cả Anh và Việt về chung 1 chuẩn)
+                let mappedKey = null;
+                let lineContent = trimmed;
+
+                if (trimmed.match(/^(Giải thích|Explanation):\s*/i)) {
+                    mappedKey = 'Giải thích';
+                    lineContent = trimmed.replace(/^(Giải thích|Explanation):\s*/i, "").trim();
+                } else if (trimmed.match(/^Vì sao đáp án khác sai:\s*/i)) {
+                    mappedKey = 'Vì sao sai';
+                    lineContent = trimmed.replace(/^Vì sao đáp án khác sai:\s*/i, "").trim();
+                } else if (trimmed.match(/^(Bẫy|Trap):\s*/i)) {
+                    mappedKey = 'Bẫy';
+                    lineContent = trimmed.replace(/^(Bẫy|Trap):\s*/i, "").trim();
+                } else if (trimmed.match(/^(Chủ điểm|Topic):\s*/i)) {
+                    mappedKey = 'Chủ điểm';
+                    lineContent = trimmed.replace(/^(Chủ điểm|Topic):\s*/i, "").trim();
+                } else if (trimmed.match(/^Keywords:\s*/i)) {
+                    mappedKey = 'Keywords';
+                    lineContent = trimmed.replace(/^Keywords:\s*/i, "").trim();
+                }
+                
+                // Gom dữ liệu
+                if (mappedKey) {
+                    ansObj.currentKey = mappedKey;
+                    if (lineContent) {
+                        ansObj.parts[ansObj.currentKey] += (ansObj.parts[ansObj.currentKey] ? " " : "") + lineContent;
+                    }
+                } else if (ansObj.currentKey && lineContent) {
+                    ansObj.parts[ansObj.currentKey] += (ansObj.parts[ansObj.currentKey] ? " " : "") + lineContent;
+                } else if (!ansObj.currentKey && lineContent) {
+                    // Cứu cánh cho format cũ ghi thiếu đáp án ở dòng tiêu đề
+                    const lateMatch = lineContent.match(/Đáp án:\s*([A-D])/i);
+                    if(lateMatch && ansObj.letter === 'UNKNOWN') ansObj.letter = lateMatch[1].toUpperCase();
+                }
+            });
+
+            // 6. Xử lý riêng đáp án cho câu Tự luận (Format mới) ghép vào Rubric
+            Object.keys(answers).forEach(key => {
+                if (answers[key].isEssay) {
+                    essayRubricText += `\n--- Essay Guidelines (from Answer Key) ---\n`;
+                    if(answers[key].parts['Giải thích']) essayRubricText += `- Explanation: ${answers[key].parts['Giải thích']}\n`;
+                    if(answers[key].parts['Bẫy']) essayRubricText += `- Trap: ${answers[key].parts['Bẫy']}\n`;
+                    if(answers[key].parts['Chủ điểm']) essayRubricText += `- Topic: ${answers[key].parts['Chủ điểm']}\n`;
+                    if(answers[key].parts['Keywords']) essayRubricText += `- Keywords: ${answers[key].parts['Keywords']}\n`;
+                }
+            });
+
+            return answers;
+        }
+
+        function createEmptyAnswerObj() {
+            return { 
+                letter: 'UNKNOWN', 
+                parts: { 'Giải thích': '', 'Vì sao sai': '', 'Bẫy': '', 'Chủ điểm': '', 'Keywords': '' },
+                currentKey: null,
+                isEssay: false
+            };
+        }
+
+        // --- RENDER GIAO DIỆN ---
+        function initUI() {
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('test-header').style.display = 'flex';
+            const testScreen = document.getElementById('test-screen');
+            testScreen.style.display = 'block';
+
+            document.getElementById('total-q').innerText = totalAnswerable;
+
+            // Render Trắc nghiệm
+            questionsData.forEach((q, index) => {
+                const card = document.createElement('div');
+                card.className = 'question-card';
+                card.id = `q-card-${q.id}`;
+
+                let optionsHTML = '';
+                for (const [letter, text] of Object.entries(q.options)) {
+                    optionsHTML += `
+                        <li class="option-item" id="opt-${q.id}-${letter}" onclick="selectAnswer('${q.id}', '${letter}', '${q.answer.letter}')">
+                            <span class="option-letter">${letter}.</span>
+                            <span class="option-text">${text}</span>
+                        </li>
+                    `;
+                }
+
+                let explainHTML = `<div class="explain-section"><strong>Correct Answer:</strong> <span class="badge-correct">${q.answer.letter}</span></div>`;
+                if(q.answer.parts['Giải thích']) explainHTML += `<div class="explain-section"><strong>Giải thích (Why Correct):</strong> ${q.answer.parts['Giải thích']}</div>`;
+                if(q.answer.parts['Vì sao sai']) explainHTML += `<div class="explain-section"><strong>Tại sao sai (Why Others Wrong):</strong> ${q.answer.parts['Vì sao sai']}</div>`;
+                if(q.answer.parts['Bẫy']) explainHTML += `<div class="explain-section"><strong>Bẫy (Trap):</strong> <span class="badge-trap">${q.answer.parts['Bẫy']}</span></div>`;
+                if(q.answer.parts['Chủ điểm']) explainHTML += `<div class="explain-section"><strong>Chủ điểm (Topic):</strong> ${q.answer.parts['Chủ điểm']}</div>`;
+                if(q.answer.parts['Keywords']) explainHTML += `<div class="explain-section"><strong>Keywords:</strong> ${q.answer.parts['Keywords']}</div>`;
+
+                if(q.answer.letter === 'UNKNOWN') {
+                    explainHTML = `<div class="explain-section" style="color:red;"><strong>Lưu ý:</strong> Câu hỏi này không có đáp án chuẩn duy nhất hoặc cấu trúc không khớp.</div>` + explainHTML;
+                }
+
+                card.innerHTML = `
+                    <div class="question-text">Question ${q.id}: ${q.text}</div>
+                    <ul class="options-list">
+                        ${optionsHTML}
+                    </ul>
+                    <div class="explanation-box" id="explain-${q.id}">
+                        ${explainHTML}
+                    </div>
+                `;
+                testScreen.appendChild(card);
+            });
+
+            // Render Tự luận
+            if (essayPromptText.trim() !== "") {
+                const essayCard = document.createElement('div');
+                essayCard.className = 'question-card';
+                essayCard.style.borderLeftColor = '#28a745'; 
+                
+                essayCard.innerHTML = `
+                    <div class="question-text" style="color: #28a745;">PART - ENGLISH ESSAY</div>
+                    <div style="margin-bottom: 20px; white-space: pre-wrap;">${essayPromptText}</div>
+                    <textarea class="essay-textarea" rows="15" placeholder="Write your essay here..."></textarea>
+                    <button onclick="document.getElementById('essay-rubric').style.display='block'">Finish Essay & Show Rubric</button>
+                    <div class="explanation-box" id="essay-rubric" style="border-left-color: #28a745; margin-top: 15px;">
+                        <h4 style="margin-top:0;">Self-Assessment Rubric / Guidelines</h4>
+                        ${essayRubricText}
+                    </div>
+                `;
+                testScreen.appendChild(essayCard);
+            }
+
+            startTimer();
+        }
+
+        function selectAnswer(qId, selectedLetter, correctLetter) {
+            const card = document.getElementById(`q-card-${qId}`);
+            const options = card.querySelectorAll('.option-item');
+            
+            if(card.classList.contains('answered')) return;
+            card.classList.add('answered');
+
+            options.forEach(opt => opt.classList.add('disabled'));
+
+            const selectedEl = document.getElementById(`opt-${qId}-${selectedLetter}`);
+            const correctEl = document.getElementById(`opt-${qId}-${correctLetter}`);
+
+            if (selectedLetter === correctLetter) {
+                selectedEl.classList.add('correct');
+                currentScore++;
+                updateScore();
+            } else {
+                selectedEl.classList.add('wrong');
+                if (correctEl) correctEl.classList.add('correct'); 
+            }
+
+            document.getElementById(`explain-${qId}`).style.display = 'block';
+        }
+
+        function updateScore() {
+            document.getElementById('score').innerText = currentScore;
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeElapsed++;
+                const minutes = String(Math.floor(timeElapsed / 60)).padStart(2, '0');
+                const seconds = String(timeElapsed % 60).padStart(2, '0');
+                document.getElementById('timer').innerText = `${minutes}:${seconds}`;
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
